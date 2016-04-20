@@ -3,7 +3,10 @@ package cartridge
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/ioutil"
+
+	"github.com/makononov/NESGo/cartridge/mappers"
 )
 
 // ParseROM parses a ROM file and returns a cartridge object for use by the
@@ -18,7 +21,7 @@ func ParseROM(filename string) (*Cartridge, error) {
 
 	// Verify magic number
 	if string(data[0:4]) != "NES\u001a" {
-		return nil, errors.New("Invalid magic number in ROM file: " + hex.Dump(data[0:4]))
+		return nil, fmt.Errorf("Invalid magic number in ROM file: %s", hex.Dump(data[0:4]))
 	}
 
 	cart.SetPrgRomSize(int(data[4]))
@@ -62,7 +65,15 @@ func ParseROM(filename string) (*Cartridge, error) {
 		position = position + 512
 	}
 
-	cart.PRG = data[position : position+cart.PrgRomSize]
+	switch cart.MapperID {
+	case 0:
+		cart.Mapper = mapper.NROM{PRG: data[position : position+cart.PrgRomSize]}
+	case 1:
+		cart.Mapper = mapper.MMC1{PRG: data[position : position+cart.PrgRomSize]}
+	default:
+		return nil, fmt.Errorf("Mapper %d not yet implemented", cart.MapperID)
+	}
+	cart.Mapper.Init()
 	position = position + cart.PrgRomSize
 
 	cart.CHR = data[position : position+cart.ChrRomSize]

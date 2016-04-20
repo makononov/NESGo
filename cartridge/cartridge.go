@@ -1,5 +1,11 @@
 package cartridge
 
+import (
+	"fmt"
+
+	"github.com/makononov/NESGo/cartridge/mappers"
+)
+
 const prgRomBlockSize int = 16384
 const chrRomBlockSize int = 8192
 const (
@@ -34,9 +40,11 @@ type Cartridge struct {
 	VsUnisystem       bool
 	TVSystemFormat    int
 
+	Mapper mapper.Mapper
+
 	Trainer []byte
-	PRG     []byte
 	CHR     []byte
+	RAM     []byte
 }
 
 // SetPrgRomSize sets the program ROM size of the cartridge, taking in to
@@ -49,4 +57,13 @@ func (cartridge *Cartridge) SetPrgRomSize(size int) {
 // to account the block size.
 func (cartridge *Cartridge) SetChrRomSize(size int) {
 	cartridge.ChrRomSize = size * chrRomBlockSize
+}
+
+// Read returns a byte located at the passed in address.
+func (cartridge *Cartridge) Read(address uint16) (byte, error) {
+	if address < 0x8000 {
+		return byte(0), fmt.Errorf("ROM address out of range: %x", address)
+	}
+
+	return cartridge.Mapper.Read(address)
 }
