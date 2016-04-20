@@ -65,6 +65,7 @@ func ParseROM(filename string) (*Cartridge, error) {
 		position = position + 512
 	}
 
+	// Initialize mapper
 	switch cart.MapperID {
 	case 0:
 		cart.Mapper = mapper.NROM{PRG: data[position : position+cart.PrgRomSize]}

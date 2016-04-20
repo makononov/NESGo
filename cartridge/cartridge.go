@@ -47,6 +47,14 @@ type Cartridge struct {
 	RAM     []byte
 }
 
+// Init initializes necessary values in the cartridge struct
+func (cartridge *Cartridge) Init() error {
+	cartridge.Trainer = make([]byte, 512)
+	cartridge.CHR = make([]byte, 8192)
+	cartridge.RAM = make([]byte, 2048)
+	return nil
+}
+
 // SetPrgRomSize sets the program ROM size of the cartridge, taking in to
 // account the block size.
 func (cartridge *Cartridge) SetPrgRomSize(size int) {
@@ -61,9 +69,18 @@ func (cartridge *Cartridge) SetChrRomSize(size int) {
 
 // Read returns a byte located at the passed in address.
 func (cartridge *Cartridge) Read(address uint16) (byte, error) {
-	if address < 0x8000 {
+	if address < 0x6000 {
 		return byte(0), fmt.Errorf("ROM address out of range: %x", address)
 	}
 
-	return cartridge.Mapper.Read(address)
+	if address >= 0x8000 {
+		return cartridge.Mapper.Read(address)
+	}
+
+	return cartridge.RAM[address-0x6000], nil
+}
+
+// Write puts a value into RAM at the address specified, or sends it to the mapper.
+func (cartridge *Cartridge) Write(address uint16, value uint8) error {
+	return cartridge.Mapper.Write(address, value)
 }

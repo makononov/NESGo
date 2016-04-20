@@ -1,5 +1,7 @@
 package mapper
 
+import "errors"
+
 type shiftregister struct {
 	val uint8
 }
@@ -7,13 +9,14 @@ type shiftregister struct {
 // MMC1 is a mapper ASIC used in Nintendo's SxROM and NES-EVENT
 // Game Pak boards. Most common SxROM boards are assigned to iNES Mapper 001.
 type MMC1 struct {
-	PRG     []byte
-	pages   []byte
-	control uint8
-	load    shiftregister
-	chr0    uint8
-	chr1    uint8
-	prg0    uint8
+	PRG        []byte
+	firstPage  uint16
+	secondPage uint16
+	control    uint8
+	load       shiftregister
+	chr0       uint8
+	chr1       uint8
+	prg0       uint8
 }
 
 func (r shiftregister) read() uint8 {
@@ -36,8 +39,12 @@ func (r shiftregister) reset() {
 
 // Init initializes the ROM pages and control register
 func (r MMC1) Init() error {
-	r.pages = r.PRG[0:8192]
-	r.pages = append(r.pages, r.PRG[len(r.PRG)-8192:len(r.PRG)]...)
+	if len(r.PRG) < 8192 {
+		return errors.New("Invalid PRG ROM data length")
+	}
+
+	r.firstPage = 0
+	r.secondPage = uint16(len(r.PRG) - 8192)
 	r.control = 0xc0
 
 	r.load.reset()
@@ -46,8 +53,14 @@ func (r MMC1) Init() error {
 
 // Read returns the value from ROM stored in the address specified
 func (r MMC1) Read(address uint16) (byte, error) {
+	base := r.firstPage
 	relativeAddress := address - 0x8000
-	return r.pages[relativeAddress], nil
+	if address >= 0xc000 {
+		base = r.secondPage
+		relativeAddress = address - 0xc000
+	}
+
+	return r.PRG[base+relativeAddress], nil
 }
 
 // Write fills the load register, and writes to the register specified by the

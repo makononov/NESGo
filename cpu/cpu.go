@@ -1,20 +1,35 @@
 package cpu
 
 type cpu struct {
-	mem []int
+	ram []byte
 
-	// Registers
-	pc int // Program Counter
-	sp int // Stack Pointer
-	a  int // Accumulator
-	x  int // X-addressing register
-	y  int // Y-addressing register
-	p  int // Processor Status
+	// special Registers
+	pc uint16 // Program Counter
+	sp uint8  // Stack Pointer
+	a  uint8  // Accumulator
+	x  uint8  // X-addressing register
+	y  uint8  // Y-addressing register
+	p  uint8  // Processor Status
+
+	// I/O Registers
+	dmcraw   uint8
+	dmcstart uint8
+	dmclen   uint8
+}
+
+// Init sets the CPU values to their initial power-up state.
+func (c *cpu) Init() {
+	c.ram = make([]byte, 2048)
+	c.p = 0x34
 }
 
 // Run is the main function that processes through the PRG ROM.
-func Run(dataBus chan int, controlBus chan int, addressBus chan int) {
+func (c *cpu) Run(clock chan bool, dataBus chan int, controlBus chan int, addressBus chan int) {
+	exit := <-clock
 
+	if exit {
+		return
+	}
 }
 
 func (c *cpu) carry() bool {
