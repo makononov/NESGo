@@ -48,7 +48,7 @@ func (r MMC1) Init() error {
 	}
 
 	r.firstPage = 0
-	r.secondPage = uint16(len(r.PRG) - 8192)
+	r.secondPage = uint16(len(r.PRG) - 0x4000)
 	r.control = 0xc0
 
 	r.load.reset()
@@ -63,6 +63,7 @@ func (r MMC1) Read(address uint16) (byte, error) {
 		base = r.secondPage
 		relativeAddress = address - 0xc000
 	}
+	fmt.Printf("READ: Address 0x%x, base 0x%x, relative 0x%x\n", address, base, relativeAddress)
 
 	return r.PRG[base+relativeAddress], nil
 }

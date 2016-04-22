@@ -30,10 +30,10 @@ func (c *CPU) Init() {
 // Run is the main function that processes through the PRG ROM.
 func (c *CPU) Run(cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
 	fmt.Println("CPU spawned, getting initial PC...")
-	cartridgeControlBus <- 0xfffc
+	cartridgeControlBus <- 0xfffd
 	readWriteBus <- 0 // read
 	c.pc = c.pc | uint16(<-dataBus)<<2
-	cartridgeControlBus <- 0xfffd
+	cartridgeControlBus <- 0xfffc
 	readWriteBus <- 0
 	c.pc = c.pc | uint16(<-dataBus)
 	fmt.Printf("PC set to %x", c.pc)

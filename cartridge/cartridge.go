@@ -49,8 +49,6 @@ type Cartridge struct {
 
 // Init initializes necessary values in the cartridge struct
 func (cartridge *Cartridge) Init() error {
-	cartridge.Trainer = make([]byte, 512)
-	cartridge.CHR = make([]byte, 8192)
 	cartridge.RAM = make([]byte, 2048)
 	return nil
 }
@@ -89,7 +87,6 @@ func (cartridge *Cartridge) Read(address uint16) (byte, error) {
 
 	if address >= 0x8000 {
 		value, err := cartridge.Mapper.Read(address)
-		fmt.Printf("READ 0x%x: 0x%x\n", address, value)
 		return value, err
 	}
 

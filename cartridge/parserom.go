@@ -64,24 +64,29 @@ func ParseROM(filename string) (*Cartridge, error) {
 
 	position := 16
 	if cart.TrainerPresent {
-		cart.Trainer = data[position : position+512]
+		cart.Trainer = make([]byte, 512)
+		copy(cart.Trainer, data[position:position+512])
 		position = position + 512
-		fmt.Printf("Loaded trainer, length: %d\n", len(cart.Trainer))
 	}
 
 	// Initialize mapper
+	// Copy the data so the file can close
+	prg := make([]byte, cart.PrgRomSize)
+	copy(prg, data[position:position+cart.PrgRomSize])
+
 	switch cart.MapperID {
 	case 0:
-		cart.Mapper = mapper.NROM{PRG: data[position : position+cart.PrgRomSize]}
+		cart.Mapper = mapper.NROM{PRG: prg}
 	case 1:
-		cart.Mapper = mapper.MMC1{PRG: data[position : position+cart.PrgRomSize]}
+		cart.Mapper = mapper.MMC1{PRG: prg}
 	default:
 		return nil, fmt.Errorf("Mapper %d not yet implemented", cart.MapperID)
 	}
 	cart.Mapper.Init()
 	position = position + cart.PrgRomSize
 
-	cart.CHR = data[position : position+cart.ChrRomSize]
+	cart.CHR = make([]byte, cart.ChrRomSize)
+	copy(cart.CHR, data[position:position+cart.ChrRomSize])
 	position = position + cart.ChrRomSize
 
 	return cart, nil
