@@ -12,6 +12,7 @@ import (
 // ParseROM parses a ROM file and returns a cartridge object for use by the
 // system.
 func ParseROM(filename string) (*Cartridge, error) {
+	fmt.Printf("Parsing %s...\n", filename)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -25,7 +26,9 @@ func ParseROM(filename string) (*Cartridge, error) {
 	}
 
 	cart.SetPrgRomSize(int(data[4]))
+	fmt.Printf("Found ROM size: %d\n", cart.PrgRomSize)
 	cart.SetChrRomSize(int(data[5]))
+	fmt.Printf("Found CHR size: %d\n", cart.ChrRomSize)
 
 	if err = parseFlags6(cart, data[6]); err != nil {
 		return nil, err
@@ -63,6 +66,7 @@ func ParseROM(filename string) (*Cartridge, error) {
 	if cart.TrainerPresent {
 		cart.Trainer = data[position : position+512]
 		position = position + 512
+		fmt.Printf("Loaded trainer, length: %d\n", len(cart.Trainer))
 	}
 
 	// Initialize mapper

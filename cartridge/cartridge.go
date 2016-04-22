@@ -55,6 +55,20 @@ func (cartridge *Cartridge) Init() error {
 	return nil
 }
 
+// WaitForReadWrite watches the control channel and responds to requests
+func (cartridge *Cartridge) WaitForReadWrite(cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
+	fmt.Println("Cartridge spawned, waiting for operations...")
+	for {
+		addr := <-cartridgeControlBus
+		if <-readWriteBus == 0 { // Read op
+			val, _ := cartridge.Read(addr)
+			dataBus <- val
+		} else { // Write op
+			cartridge.Write(addr, <-dataBus)
+		}
+	}
+}
+
 // SetPrgRomSize sets the program ROM size of the cartridge, taking in to
 // account the block size.
 func (cartridge *Cartridge) SetPrgRomSize(size int) {
@@ -74,7 +88,9 @@ func (cartridge *Cartridge) Read(address uint16) (byte, error) {
 	}
 
 	if address >= 0x8000 {
-		return cartridge.Mapper.Read(address)
+		value, err := cartridge.Mapper.Read(address)
+		fmt.Printf("READ 0x%x: 0x%x\n", address, value)
+		return value, err
 	}
 
 	return cartridge.RAM[address-0x6000], nil

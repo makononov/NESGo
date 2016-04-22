@@ -1,6 +1,9 @@
 package cpu
 
-type cpu struct {
+import "fmt"
+
+// CPU emulates the 6502 processor
+type CPU struct {
 	ram []byte
 
 	// special Registers
@@ -18,72 +21,76 @@ type cpu struct {
 }
 
 // Init sets the CPU values to their initial power-up state.
-func (c *cpu) Init() {
+func (c *CPU) Init() {
 	c.ram = make([]byte, 2048)
 	c.p = 0x34
+	c.pc = 0
 }
 
 // Run is the main function that processes through the PRG ROM.
-func (c *cpu) Run(clock chan bool, dataBus chan int, controlBus chan int, addressBus chan int) {
-	exit := <-clock
-
-	if exit {
-		return
-	}
+func (c *CPU) Run(cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
+	fmt.Println("CPU spawned, getting initial PC...")
+	cartridgeControlBus <- 0xfffc
+	readWriteBus <- 0 // read
+	c.pc = c.pc | uint16(<-dataBus)<<2
+	cartridgeControlBus <- 0xfffd
+	readWriteBus <- 0
+	c.pc = c.pc | uint16(<-dataBus)
+	fmt.Printf("PC set to %x", c.pc)
 }
 
-func (c *cpu) carry() bool {
+func (c *CPU) carry() bool {
 	return c.p&0x01 != 0
 }
 
-func (c *cpu) setCarry() {
+func (c *CPU) setCarry() {
 	c.p = c.p | 0x01
 }
 
-func (c *cpu) zero() bool {
+func (c *CPU) zero() bool {
 	return c.p&0x02 != 0
 }
 
-func (c *cpu) setZero() {
+func (c *CPU) setZero() {
 	c.p = c.p | 0x02
 }
 
-func (c *cpu) interruptDisable() bool {
+func (c *CPU) interruptDisable() bool {
 	return c.p&0x04 != 0
 }
 
-func (c *cpu) setInterruptDisable() {
+func (c *CPU) setInterruptDisable() {
 	c.p = c.p | 0x04
 }
 
-func (c *cpu) decimal() bool {
+func (c *CPU) decimal() bool {
 	return c.p&0x08 != 0
 }
 
-func (c *cpu) setDecimal() {
+func (c *CPU) setDecimal() {
 	c.p = c.p | 0x08
 }
 
-func (c *cpu) breakCommand() bool {
+func (c *CPU) breakCommand() bool {
 	return c.p&0x10 != 0
 }
 
-func (c *cpu) setBreakCommand() {
+func (c *CPU) setBreakCommand() {
 	c.p = c.p | 0x10
 }
 
-func (c *cpu) overflow() bool {
+func (c *CPU) overflow() bool {
 	return c.p&0x40 != 0
 }
 
-func (c *cpu) setOverflow() {
+func (c *CPU) setOverflow() {
 	c.p = c.p | 0x40
 }
 
-func (c *cpu) negative() bool {
+func (c *CPU) negative() bool {
 	return c.p&0x80 != 0
 }
 
-func (c *cpu) setNegative() {
+func (c *CPU) setNegative() {
 	c.p = c.p | 0x80
 }

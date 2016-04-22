@@ -1,6 +1,9 @@
 package mapper
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 type shiftregister struct {
 	val uint8
@@ -39,6 +42,7 @@ func (r shiftregister) reset() {
 
 // Init initializes the ROM pages and control register
 func (r MMC1) Init() error {
+	fmt.Println("Loaded mapper MMC1")
 	if len(r.PRG) < 8192 {
 		return errors.New("Invalid PRG ROM data length")
 	}
