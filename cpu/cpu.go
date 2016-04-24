@@ -21,6 +21,7 @@ type CPU struct {
 
 	// Communication busses
 	cartridgeControlBus chan uint16
+	ppuControlBus       chan uint16
 	readWriteBus        chan int
 	dataBus             chan uint8
 
@@ -28,7 +29,8 @@ type CPU struct {
 }
 
 // Init sets the CPU values to their initial power-up state.
-func (c *CPU) Init(cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
+func (c *CPU) Init(ppuControlBus chan uint16, cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
+	c.ppuControlBus = ppuControlBus
 	c.cartridgeControlBus = cartridgeControlBus
 	c.readWriteBus = readWriteBus
 	c.dataBus = dataBus
@@ -122,21 +124,25 @@ func (c *CPU) readMem(address uint16) uint8 {
 	return <-c.dataBus
 }
 
-func (c *CPU) writeMem(address uint16, val uint8) {
+func (c *CPU) writeMem(address uint16, val uint8) error {
 	var controlBus chan uint16
 
 	if address >= 0x8000 { // Cartridge ROM
 		controlBus = c.cartridgeControlBus
-	} else if address >= 0x0200 && address < 0x0800 { // Internal RAM
-		relativeAddress := address - 0x0200
-		c.ram[relativeAddress] = val
-		return
+	} else if address >= 0x2000 && address < 0x4000 {
+		controlBus = c.ppuControlBus
+	} else if address < 0x0800 { // Internal RAM
+		c.ram[address] = val
+		return nil
 	} else {
-		panic(fmt.Errorf("Attempt to write to an invalid memory location: 0x%x\n", address))
+		return fmt.Errorf("Attempt to write to an invalid memory location: 0x%x\n", address)
 	}
 
 	controlBus <- address
 	c.readWriteBus <- 1 // write
+	c.dataBus <- val
+
+	return nil
 }
 
 func (c *CPU) execute(opcode uint8) {
@@ -144,7 +150,7 @@ func (c *CPU) execute(opcode uint8) {
 	case 0x78: // SEI
 		c.sei()
 		c.cycleCount += 2
-		c.pc += 1
+		c.pc++
 		break
 	case 0x8d: //STA abs
 		c.sta(c.absolute())

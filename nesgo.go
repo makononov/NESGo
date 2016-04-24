@@ -9,16 +9,12 @@ import (
 
 	"github.com/makononov/NESGo/cartridge"
 	"github.com/makononov/NESGo/cpu"
+	"github.com/makononov/NESGo/ppu"
 	// "github.com/go-gl/glfw/v3.1/glfw"
 )
 
 const windowHeight = 480
 const windowWidth = 640
-
-type console struct {
-	cartridge *cartridge.Cartridge
-	cpu       *cpu.CPU
-}
 
 func init() {
 	runtime.LockOSThread()
@@ -32,7 +28,6 @@ func check(e error) {
 
 func main() {
 	fmt.Println("Initializing console...")
-	cons := new(console)
 
 	if len(os.Args) != 2 {
 		panic(errors.New("You must provide a ROM file to run."))
@@ -44,21 +39,27 @@ func main() {
 
 	// Initialize cartridge
 	fmt.Println("Reading ROM file and initializing cartridge...")
-	cons.cartridge, err = cartridge.ParseROM(romFile)
+	cart, err := cartridge.ParseROM(romFile)
 	check(err)
 
 	dataBus := make(chan uint8)
 	readWriteBus := make(chan int)
 	cartridgeControlBus := make(chan uint16)
+	ppuControlBus := make(chan uint16)
 
 	// Initialize cpu
 	fmt.Println("Initializing CPU...")
-	cons.cpu = new(cpu.CPU)
-	cons.cpu.Init(cartridgeControlBus, readWriteBus, dataBus)
+	cpu := new(cpu.CPU)
+	cpu.Init(ppuControlBus, cartridgeControlBus, readWriteBus, dataBus)
+
+	fmt.Println("Initializing PPU...")
+	ppu := new(ppu.PPU)
+	ppu.Init(ppuControlBus, readWriteBus, dataBus)
 
 	fmt.Println("Spawning threads...")
-	go cons.cartridge.WaitForReadWrite(cartridgeControlBus, readWriteBus, dataBus)
-	go cons.cpu.Run()
+	go cart.WaitForReadWrite(cartridgeControlBus, readWriteBus, dataBus)
+	go cpu.Run()
+	go ppu.Run()
 	for {
 	}
 
