@@ -76,13 +76,13 @@ func ParseROM(filename string) (*Cartridge, error) {
 
 	switch cart.MapperID {
 	case 0:
-		cart.Mapper = mapper.NROM{PRG: prg}
+		cart.Mapper = new(mapper.NROM)
 	case 1:
-		cart.Mapper = mapper.MMC1{PRG: prg}
+		cart.Mapper = new(mapper.MMC1)
 	default:
 		return nil, fmt.Errorf("Mapper %d not yet implemented", cart.MapperID)
 	}
-	cart.Mapper.Init()
+	cart.Mapper.Init(prg)
 	position = position + cart.PrgRomSize
 
 	cart.CHR = make([]byte, cart.ChrRomSize)

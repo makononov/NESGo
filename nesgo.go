@@ -47,18 +47,18 @@ func main() {
 	cons.cartridge, err = cartridge.ParseROM(romFile)
 	check(err)
 
-	// Initialize cpu
-	fmt.Println("Initializing CPU...")
-	cons.cpu = new(cpu.CPU)
-	cons.cpu.Init()
-
-	fmt.Println("Spawning threads...")
 	dataBus := make(chan uint8)
 	readWriteBus := make(chan int)
 	cartridgeControlBus := make(chan uint16)
 
+	// Initialize cpu
+	fmt.Println("Initializing CPU...")
+	cons.cpu = new(cpu.CPU)
+	cons.cpu.Init(cartridgeControlBus, readWriteBus, dataBus)
+
+	fmt.Println("Spawning threads...")
 	go cons.cartridge.WaitForReadWrite(cartridgeControlBus, readWriteBus, dataBus)
-	go cons.cpu.Run(cartridgeControlBus, readWriteBus, dataBus)
+	go cons.cpu.Run()
 	for {
 	}
 
