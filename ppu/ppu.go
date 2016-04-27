@@ -29,6 +29,11 @@ type PPU struct {
 	emphasizeRed       bool
 	emphasizeGreen     bool
 	emphasizeBlue      bool
+
+	// PPUSTATUS flags
+	vblank         bool
+	sprite0Hit     bool
+	spriteOverflow bool
 }
 
 // Init initializes a PPU struct with default values and the passed in
@@ -108,4 +113,18 @@ func (p *PPU) writePPUMASK(val uint8) {
 	p.emphasizeRed = (val&0x20 != 0)
 	p.emphasizeGreen = (val&0x40 != 0)
 	p.emphasizeRed = (val&0x80 != 0)
+}
+
+func (p *PPU) readPPUSTATUS() uint8 {
+	value := uint8(0)
+	if p.vblank {
+		value |= 1 << 7
+	}
+	if p.sprite0Hit {
+		value |= 1 << 6
+	}
+	if p.spriteOverflow {
+		value |= 1 << 5
+	}
+	return value
 }
