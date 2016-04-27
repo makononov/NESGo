@@ -49,6 +49,7 @@ func (c *CPU) Run() {
 	fmt.Println("Beginning execution loop...")
 	var opcode uint8
 	for {
+		fmt.Printf("0x%x", c.pc)
 		opcode = c.readMem(c.pc)
 		c.execute(opcode)
 	}
@@ -148,16 +149,25 @@ func (c *CPU) writeMem(address uint16, val uint8) error {
 func (c *CPU) execute(opcode uint8) {
 	switch opcode {
 	case 0x78: // SEI
+		fmt.Printf(": SEI\n")
 		c.sei()
 		c.cycleCount += 2
 		c.pc++
 		break
+	case 0x85: //STA zeropage
+		fmt.Printf(": STA $%x\n", c.zeropage())
+		c.sta(c.zeropage())
+		c.cycleCount += 3
+		c.pc += 2
+		break
 	case 0x8d: //STA abs
+		fmt.Printf(": STA $%x\n", c.absolute())
 		c.sta(c.absolute())
 		c.cycleCount += 4
 		c.pc += 3
 		break
 	case 0xa9: //LDA Immediate
+		fmt.Printf(": LDA #%x\n", c.immediate())
 		c.lda(c.immediate())
 		c.cycleCount += 2
 		c.pc += 2
