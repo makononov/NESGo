@@ -43,6 +43,7 @@ func (c *CPU) Init(ppuControlBus chan uint16, cartridgeControlBus chan uint16, r
 	c.dataBus = dataBus
 	c.ram = make([]byte, 2048)
 	c.pc = 0
+	c.sp = 0xff
 
 	c.interruptDisable = true
 }
@@ -57,7 +58,7 @@ func (c *CPU) Run() {
 	fmt.Println("Beginning execution loop...")
 	var opcode uint8
 	for {
-		fmt.Printf("0x%x", c.pc)
+		fmt.Printf("0x%x A:0x%x X:0x%x Y:0x%x SP:0x%x", c.pc, c.a, c.x, c.y, c.sp)
 		opcode = c.readMem(c.pc)
 		c.execute(opcode)
 	}
@@ -68,6 +69,10 @@ func (c *CPU) readMem(address uint16) uint8 {
 
 	if address >= 0x8000 {
 		controlBus = c.cartridgeControlBus
+	} else if address >= 0x2000 && address < 0x4000 {
+		controlBus = c.ppuControlBus
+	} else if address < 0x0800 {
+		return c.ram[address]
 	} else {
 		panic(fmt.Errorf("Attempt to read invalid memory location: 0x%x\n", address))
 	}
@@ -100,11 +105,45 @@ func (c *CPU) writeMem(address uint16, val uint8) error {
 
 func (c *CPU) execute(opcode uint8) {
 	switch opcode {
+	case 0x20: // JSR absolute
+		fmt.Printf(": JSR $%x\n", c.absolute())
+		c.jsr(c.absolute())
+		c.cycleCount += 6
+		break
 	case 0x2c: // BIT absolute
-		fmt.Printf(": BIT $%x (0x%x)\n", c.absolute(), c.readMem(c.absolute()))
+		fmt.Printf(": BIT $%x (0x%x)", c.absolute(), c.readMem(c.absolute()))
 		c.bit(c.readMem(c.absolute()))
 		c.cycleCount += 3
 		c.pc += 2
+		fmt.Printf(" Z:%t S:%t V:%t\n", c.zero, c.negative, c.overflow)
+		break
+	case 0x30: // BMI
+		fmt.Printf(": BMI $%x\n", c.zeropage())
+		c.bmi(c.relative())
+		c.cycleCount += 2
+		break
+	case 0x38: // SEC
+		fmt.Printf(": SEC\n")
+		c.sec()
+		c.cycleCount += 2
+		c.pc++
+		break
+	case 0x48: // PHA
+		fmt.Printf(": PHA\n")
+		c.pha()
+		c.cycleCount += 3
+		c.pc++
+		break
+	case 0x4c: // JMP absolute
+		fmt.Printf(": JMP $%x\n", c.absolute())
+		c.jmp(c.absolute())
+		c.cycleCount += 3
+		break
+	case 0x68: // PLA
+		fmt.Printf(": PLA\n")
+		c.pla()
+		c.cycleCount += 4
+		c.pc++
 		break
 	case 0x78: // SEI
 		fmt.Printf(": SEI\n")
@@ -112,9 +151,21 @@ func (c *CPU) execute(opcode uint8) {
 		c.cycleCount += 2
 		c.pc++
 		break
+	case 0x84: // STY zeropage
+		fmt.Printf(": STY $%x\n", c.zeropage())
+		c.sty(c.zeropage())
+		c.cycleCount += 3
+		c.pc += 2
+		break
 	case 0x85: // STA zeropage
 		fmt.Printf(": STA $%x\n", c.zeropage())
 		c.sta(c.zeropage())
+		c.cycleCount += 3
+		c.pc += 2
+		break
+	case 0x86: // STX zeropage
+		fmt.Printf(": STX $%x\n", c.zeropage())
+		c.stx(c.zeropage())
 		c.cycleCount += 3
 		c.pc += 2
 		break
@@ -130,6 +181,12 @@ func (c *CPU) execute(opcode uint8) {
 		c.cycleCount += 2
 		c.pc += 2
 		break
+	case 0xa5: // LDA Zerapage
+		fmt.Printf(": LDA $%x\n", c.zeropage())
+		c.lda(c.readMem(c.zeropage()))
+		c.cycleCount += 3
+		c.pc += 2
+		break
 	case 0xa9: // LDA Immediate
 		fmt.Printf(": LDA #%x\n", c.immediate())
 		c.lda(c.immediate())
@@ -142,7 +199,43 @@ func (c *CPU) execute(opcode uint8) {
 		c.cycleCount += 2
 		c.pc++
 		break
+	case 0xe5: // SBC zeropage
+		fmt.Printf(": SBC $%x\n", c.zeropage())
+		c.sbc(c.readMem(c.zeropage()))
+		c.cycleCount += 3
+		c.pc += 2
+		break
+	case 0xe6: // INC zeropage
+		fmt.Printf(": INC $%x\n", c.zeropage())
+		c.inc(c.zeropage())
+		c.cycleCount += 5
+		c.pc += 2
+		break
 	default:
 		panic(fmt.Errorf("Opcode not supported: 0x%x\n", opcode))
 	}
+}
+
+func (c *CPU) stackPush(value uint8) {
+	c.writeMem(0x0100+uint16(c.sp), value)
+	c.sp--
+}
+
+func (c *CPU) stackPop() uint8 {
+	c.sp++
+	return c.readMem(0x0100 + uint16(c.sp))
+}
+
+func (c *CPU) setNegative(value uint8) {
+	c.negative = (value&1<<7 != 0)
+}
+
+func (c *CPU) setZero(value uint8) {
+	c.zero = (value == 0)
+}
+
+func binToBcd(val uint8) int8 {
+	ones := int8(val & 0x0f)
+	tens := int8(val & 0xf0 / 0x10)
+	return (tens * 10) + ones
 }

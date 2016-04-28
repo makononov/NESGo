@@ -14,3 +14,7 @@ func (c *CPU) zeropage() uint16 {
 	lowByte := uint16(c.readMem(c.pc + 1))
 	return lowByte
 }
+
+func (c *CPU) relative() int8 {
+	return int8(c.readMem(c.pc + 1))
+}

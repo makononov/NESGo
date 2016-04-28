@@ -1,9 +1,6 @@
 package ppu
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
 // PPU emulates the Picture Processing Unit of the NES
 type PPU struct {
@@ -44,16 +41,24 @@ func (p *PPU) Init(controlBus chan uint16, readWriteBus chan int, dataBus chan u
 	p.dataBus = dataBus
 }
 
+func (p *PPU) readMem(address uint16) (uint8, error) {
+	if address == 0x2002 {
+		return p.ppuSTATUS(), nil
+	}
+
+	return 0, fmt.Errorf("Attempt to read PPU memory at 0x%x - not implemented", address)
+}
+
 func (p *PPU) writeMem(address uint16, value uint8) error {
 	if address >= 0x2000 && address < 0x4000 { // register write channel
 		// each register interface is mirrored every 8 bytes.
 		registerNumber := (address - 0x2000) % 8
 		switch registerNumber {
 		case 0: // PPUCTRL
-			p.writePPUCTRL(value)
+			p.setPPUCTRL(value)
 			break
 		case 1:
-			p.writePPUMASK(value)
+			p.setPPUMASK(value)
 			break
 		default:
 			return fmt.Errorf("Attempt to write to PPU Register #%d - not implemented", registerNumber)
@@ -69,15 +74,20 @@ func (p *PPU) Run() {
 	for {
 		address := <-p.controlBus
 		if <-p.readWriteBus == 0 { // read
-			panic(errors.New("PPU Reading not implemented"))
+			val, err := p.readMem(address)
+			if err != nil {
+				panic(err)
+			}
+			p.dataBus <- val
 		} else { // write
-			p.writeMem(address, <-p.dataBus)
+			if err := p.writeMem(address, <-p.dataBus); err != nil {
+				panic(err)
+			}
 		}
-
 	}
 }
 
-func (p *PPU) writePPUCTRL(val uint8) {
+func (p *PPU) setPPUCTRL(val uint8) {
 	p.baseNametableAddress = 0x2000 + (uint16(val&0x03) * 0x0400)
 
 	if val&0x04 != 0 {
@@ -104,7 +114,7 @@ func (p *PPU) writePPUCTRL(val uint8) {
 	p.vblankNMI = (val&0x80 != 0)
 }
 
-func (p *PPU) writePPUMASK(val uint8) {
+func (p *PPU) setPPUMASK(val uint8) {
 	p.grayscale = (val&0x01 != 0)
 	p.showLeftBackground = (val&0x02 != 0)
 	p.showLeftSprites = (val&0x04 != 0)
@@ -115,7 +125,7 @@ func (p *PPU) writePPUMASK(val uint8) {
 	p.emphasizeRed = (val&0x80 != 0)
 }
 
-func (p *PPU) readPPUSTATUS() uint8 {
+func (p *PPU) ppuSTATUS() uint8 {
 	value := uint8(0)
 	if p.vblank {
 		value |= 1 << 7
