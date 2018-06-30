@@ -54,7 +54,8 @@ func ParseROM(filename string) (*Cartridge, error) {
 	// Verify bytes 11-15 are zeroed
 	for _, num := range data[11:16] {
 		if int(num) != 0 {
-			return nil, errors.New("Invalid ROM file (bytes 11-15 contain data)")
+			fmt.Printf("ROM containes junk code in bytes 11-15: '%s'\n", string(data[10:16]))
+			break
 		}
 	}
 
@@ -79,6 +80,8 @@ func ParseROM(filename string) (*Cartridge, error) {
 		cart.Mapper = new(mapper.NROM)
 	case 1:
 		cart.Mapper = new(mapper.MMC1)
+	case 2:
+		cart.Mapper = new(mapper.UxROM)
 	default:
 		return nil, fmt.Errorf("Mapper %d not yet implemented", cart.MapperID)
 	}

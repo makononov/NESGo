@@ -17,8 +17,26 @@ func (c *CPU) bmi(offset int8) {
 	}
 }
 
+func (c *CPU) bpl(offset int8) {
+	if !c.negative {
+		c.pc = uint16(int(c.pc) - int(offset))
+	} else {
+		c.pc += 2
+	}
+}
+
+func (c *CPU) clc() {
+	c.carry = false
+}
+
 func (c *CPU) cld() {
 	c.decimal = false
+}
+
+func (c *CPU) dey() {
+	c.y--
+	c.setZero(c.y)
+	c.setNegative(c.y)
 }
 
 func (c *CPU) inc(address uint16) {
@@ -49,6 +67,12 @@ func (c *CPU) lda(val uint8) {
 
 func (c *CPU) ldx(val uint8) {
 	c.x = val
+	c.setNegative(val)
+	c.setZero(val)
+}
+
+func (c *CPU) ldy(val uint8) {
+	c.y = val
 	c.setNegative(val)
 	c.setZero(val)
 }
@@ -104,4 +128,16 @@ func (c *CPU) stx(address uint16) {
 
 func (c *CPU) sty(address uint16) {
 	c.writeMem(address, c.y)
+}
+
+func (c *CPU) tax() {
+	c.x = c.a
+}
+
+func (c *CPU) txa() {
+	c.a = c.x
+}
+
+func (c *CPU) txs() {
+	c.sp = c.x
 }

@@ -1,6 +1,9 @@
 package cpu
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // CPU emulates the 6502 processor
 type CPU struct {
@@ -57,8 +60,10 @@ func (c *CPU) Run() {
 
 	fmt.Println("Beginning execution loop...")
 	var opcode uint8
+	executed := 0
 	for {
-		fmt.Printf("0x%x A:0x%x X:0x%x Y:0x%x SP:0x%x", c.pc, c.a, c.x, c.y, c.sp)
+		executed++
+		fmt.Printf("%d 0x%x A:0x%x X:0x%x Y:0x%x SP:0x%x", executed, c.pc, c.a, c.x, c.y, c.sp)
 		opcode = c.readMem(c.pc)
 		c.execute(opcode)
 	}
@@ -105,6 +110,28 @@ func (c *CPU) writeMem(address uint16, val uint8) error {
 
 func (c *CPU) execute(opcode uint8) {
 	switch opcode {
+	case 0x10: // BPL
+		fmt.Printf(": BPL $%x\n", c.relative())
+		prevPC := c.pc
+		c.bpl(c.relative())
+		if c.pc == prevPC {
+			// Branch was not taken
+			c.cycleCount += 2
+		} else {
+			c.cycleCount++
+
+			if page(prevPC) != page(c.pc) {
+				// Crossed page boundary
+				c.cycleCount++
+			}
+		}
+		break
+	case 0x18: // CLC
+		fmt.Printf(": CLC\n")
+		c.clc()
+		c.cycleCount += 2
+		c.pc++
+		break
 	case 0x20: // JSR absolute
 		fmt.Printf(": JSR $%x\n", c.absolute())
 		c.jsr(c.absolute())
@@ -118,9 +145,20 @@ func (c *CPU) execute(opcode uint8) {
 		fmt.Printf(" Z:%t S:%t V:%t\n", c.zero, c.negative, c.overflow)
 		break
 	case 0x30: // BMI
-		fmt.Printf(": BMI $%x\n", c.zeropage())
+		fmt.Printf(": BMI $%x\n", c.relative())
+		prevPC := c.pc
 		c.bmi(c.relative())
-		c.cycleCount += 2
+		if c.pc == prevPC {
+			// Branch was not taken
+			c.cycleCount += 2
+		} else {
+			c.cycleCount++
+
+			if page(prevPC) != page(c.pc) {
+				// Crossed page boundary
+				c.cycleCount++
+			}
+		}
 		break
 	case 0x38: // SEC
 		fmt.Printf(": SEC\n")
@@ -169,19 +207,46 @@ func (c *CPU) execute(opcode uint8) {
 		c.cycleCount += 3
 		c.pc += 2
 		break
+	case 0x88: // DEY
+		fmt.Printf(": DEY\n")
+		c.dey()
+		c.cycleCount += 2
+		c.pc++
+		break
+	case 0x8a: // TXA
+		fmt.Printf(": TXA\n")
+		c.txa()
+		c.cycleCount += 2
+		c.pc++
 	case 0x8d: // STA abs
 		fmt.Printf(": STA $%x\n", c.absolute())
 		c.sta(c.absolute())
 		c.cycleCount += 4
 		c.pc += 3
 		break
+	case 0x91: // STA (Indirect),Y
+		fmt.Printf(": STA ($%x), Y\n", c.immediate())
+		c.sta(c.indirectY())
+		c.cycleCount += 6
+		c.pc += 2
+		break
+	case 0x9a: // TXS
+		fmt.Printf(": TXS\n")
+		c.txs()
+		c.cycleCount += 2
+		c.pc++
+	case 0xa0: // LDY Immediate
+		fmt.Printf(": LDY #%x\n", c.immediate())
+		c.ldy(c.immediate())
+		c.cycleCount += 2
+		c.pc += 2
 	case 0xa2: // LDX Immediate
 		fmt.Printf(": LDX #%x\n", c.immediate())
 		c.ldx(c.immediate())
 		c.cycleCount += 2
 		c.pc += 2
 		break
-	case 0xa5: // LDA Zerapage
+	case 0xa5: // LDA Zeropage
 		fmt.Printf(": LDA $%x\n", c.zeropage())
 		c.lda(c.readMem(c.zeropage()))
 		c.cycleCount += 3
@@ -193,6 +258,17 @@ func (c *CPU) execute(opcode uint8) {
 		c.cycleCount += 2
 		c.pc += 2
 		break
+	case 0xaa: // TAX
+		fmt.Printf(": TAX\n")
+		c.tax()
+		c.cycleCount += 2
+		c.pc++
+		break
+	case 0xad: // LDA Absolute
+		fmt.Printf(": LDA $%x\n", c.absolute())
+		c.lda(c.readMem(c.absolute()))
+		c.cycleCount += 4
+		c.pc += 3
 	case 0xd8: // CLD
 		fmt.Printf(": CLD\n")
 		c.cld()
@@ -238,4 +314,8 @@ func binToBcd(val uint8) int8 {
 	ones := int8(val & 0x0f)
 	tens := int8(val & 0xf0 / 0x10)
 	return (tens * 10) + ones
+}
+
+func page(address uint16) int {
+	return int(math.Floor(float64(address) / 0x4000))
 }

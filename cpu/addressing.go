@@ -18,3 +18,8 @@ func (c *CPU) zeropage() uint16 {
 func (c *CPU) relative() int8 {
 	return int8(c.readMem(c.pc + 1))
 }
+
+func (c *CPU) indirectY() uint16 {
+	lowByte := c.zeropage()
+	return lowByte + uint16(c.y)
+}

@@ -30,7 +30,7 @@ func main() {
 	fmt.Println("Initializing console...")
 
 	if len(os.Args) != 2 {
-		panic(errors.New("You must provide a ROM file to run."))
+		panic(errors.New("you must provide a ROM file to run"))
 	}
 
 	romFile := os.Args[1]

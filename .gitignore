@@ -25,3 +25,7 @@ _testmain.go
 
 # ROM files
 *.nes
+
+# Visual Studio Code
+.vscode/
+debug
