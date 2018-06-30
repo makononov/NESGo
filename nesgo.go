@@ -46,15 +46,16 @@ func main() {
 	readWriteBus := make(chan int)
 	cartridgeControlBus := make(chan uint16)
 	ppuControlBus := make(chan uint16)
+	vblankBus := make(chan bool)
 
 	// Initialize cpu
 	fmt.Println("Initializing CPU...")
 	cpu := new(cpu.CPU)
-	cpu.Init(ppuControlBus, cartridgeControlBus, readWriteBus, dataBus)
+	cpu.Init(ppuControlBus, cartridgeControlBus, readWriteBus, dataBus, vblankBus)
 
 	fmt.Println("Initializing PPU...")
 	ppu := new(ppu.PPU)
-	ppu.Init(ppuControlBus, readWriteBus, dataBus)
+	ppu.Init(ppuControlBus, readWriteBus, dataBus, vblankBus)
 
 	fmt.Println("Spawning threads...")
 	go cart.WaitForReadWrite(cartridgeControlBus, readWriteBus, dataBus)

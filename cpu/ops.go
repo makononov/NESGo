@@ -11,7 +11,7 @@ func (c *CPU) bit(val uint8) {
 
 func (c *CPU) bmi(offset int8) {
 	if c.negative {
-		c.pc = uint16(int(c.pc) - int(offset))
+		c.pc = uint16(int(c.pc) + int(offset))
 	} else {
 		c.pc += 2
 	}
@@ -19,7 +19,7 @@ func (c *CPU) bmi(offset int8) {
 
 func (c *CPU) bpl(offset int8) {
 	if !c.negative {
-		c.pc = uint16(int(c.pc) - int(offset))
+		c.pc = uint16(int(c.pc) + int(offset))
 	} else {
 		c.pc += 2
 	}

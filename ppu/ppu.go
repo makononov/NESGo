@@ -7,6 +7,7 @@ type PPU struct {
 	controlBus   chan uint16
 	readWriteBus chan int
 	dataBus      chan uint8
+	vblankBus    chan bool
 
 	// PPUCTRL flags
 	baseNametableAddress          uint16
@@ -35,10 +36,11 @@ type PPU struct {
 
 // Init initializes a PPU struct with default values and the passed in
 // bus channel.
-func (p *PPU) Init(controlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
+func (p *PPU) Init(controlBus chan uint16, readWriteBus chan int, dataBus chan uint8, vblankBus chan bool) {
 	p.controlBus = controlBus
 	p.readWriteBus = readWriteBus
 	p.dataBus = dataBus
+	p.vblankBus = vblankBus
 }
 
 func (p *PPU) readMem(address uint16) (uint8, error) {
@@ -72,16 +74,24 @@ func (p *PPU) writeMem(address uint16, value uint8) error {
 func (p *PPU) Run() {
 	fmt.Println("PPU spawned, awaiting instructions...")
 	for {
-		address := <-p.controlBus
-		if <-p.readWriteBus == 0 { // read
-			val, err := p.readMem(address)
-			if err != nil {
-				panic(err)
+		select {
+		case p.vblank = <-p.vblankBus:
+			if p.vblank {
+				fmt.Println("*** VBLANK ***")
+				// VBLANK CODE
 			}
-			p.dataBus <- val
-		} else { // write
-			if err := p.writeMem(address, <-p.dataBus); err != nil {
-				panic(err)
+
+		case address := <-p.controlBus:
+			if <-p.readWriteBus == 0 { // read
+				val, err := p.readMem(address)
+				if err != nil {
+					panic(err)
+				}
+				p.dataBus <- val
+			} else { // write
+				if err := p.writeMem(address, <-p.dataBus); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}

@@ -34,16 +34,20 @@ type CPU struct {
 	ppuControlBus       chan uint16
 	readWriteBus        chan int
 	dataBus             chan uint8
+	vblankBus           chan bool
 
+	vblank     bool
 	cycleCount int
 }
 
 // Init sets the CPU values to their initial power-up state.
-func (c *CPU) Init(ppuControlBus chan uint16, cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8) {
+func (c *CPU) Init(ppuControlBus chan uint16, cartridgeControlBus chan uint16, readWriteBus chan int, dataBus chan uint8, vblankBus chan bool) {
 	c.ppuControlBus = ppuControlBus
 	c.cartridgeControlBus = cartridgeControlBus
 	c.readWriteBus = readWriteBus
 	c.dataBus = dataBus
+	c.vblankBus = vblankBus
+	c.vblank = false
 	c.ram = make([]byte, 2048)
 	c.pc = 0
 	c.sp = 0xff
@@ -66,6 +70,16 @@ func (c *CPU) Run() {
 		fmt.Printf("%d 0x%x A:0x%x X:0x%x Y:0x%x SP:0x%x", executed, c.pc, c.a, c.x, c.y, c.sp)
 		opcode = c.readMem(c.pc)
 		c.execute(opcode)
+
+		// VBLANK
+		if !c.vblank && c.cycleCount >= 27507 {
+			c.startVBlank()
+		}
+
+		if c.vblank && c.cycleCount >= 29780 {
+			c.endVBlank()
+			c.cycleCount = 0
+		}
 	}
 }
 
@@ -308,6 +322,16 @@ func (c *CPU) setNegative(value uint8) {
 
 func (c *CPU) setZero(value uint8) {
 	c.zero = (value == 0)
+}
+
+func (c *CPU) startVBlank() {
+	c.vblank = true
+	c.vblankBus <- true
+}
+
+func (c *CPU) endVBlank() {
+	c.vblank = false
+	c.vblankBus <- false
 }
 
 func binToBcd(val uint8) int8 {
