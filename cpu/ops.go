@@ -2,93 +2,184 @@ package cpu
 
 import "fmt"
 
-func (c *CPU) bit(val uint8) {
+// Operation is a function with an option addressing mode that executes the corresponding opcode
+type Operation func(AddressingMode)
+
+func (c *CPU) branchif(flag bool, offset int8) {
+	if flag {
+		newPC := Address(int(c.pc+2) + int(offset))
+		if page(newPC) != page(c.pc) {
+			c.cycleCount++
+		}
+		c.pc = newPC
+		c.cycleCount++
+	} else {
+		c.pc += 2
+	}
+}
+
+func (c *CPU) adc(address AddressingMode) {
+	var carry uint8
+	val := c.readMem(address())
+	if c.carry {
+		carry = 1
+	}
+	trueResult := uint16(c.a) + uint16(val) + uint16(carry)
+	c.carry = (trueResult > 0xff)
+
+	signBit := val >> 7
+	c.overflow = (signBit == 1 && trueResult >= 0) || (signBit == 0 && trueResult < 0)
+
+	c.a = val
+	c.setZero(c.a)
+	c.setNegative(c.a)
+}
+
+func (c *CPU) bcc(relative AddressingMode) {
+	offset := int8(c.readMem(relative()))
+	c.branchif(!c.carry, offset)
+}
+
+func (c *CPU) bcs(relative AddressingMode) {
+	offset := int8(c.readMem(relative()))
+	c.branchif(c.carry, offset)
+}
+
+func (c *CPU) beq(relative AddressingMode) {
+	offset := int8(c.readMem(relative()))
+	c.branchif(c.zero, offset)
+}
+
+func (c *CPU) bit(address AddressingMode) {
+	val := c.readMem(address())
 	test := val & c.a
 	c.setZero(test)
 	c.setNegative(val)
 	c.overflow = (val&1<<6 != 0)
 }
 
-func (c *CPU) bmi(offset int8) {
-	if c.negative {
-		c.pc = uint16(int(c.pc) + int(offset))
-	} else {
-		c.pc += 2
-	}
+func (c *CPU) bmi(relative AddressingMode) {
+	offset := int8(c.readMem(relative()))
+	c.branchif(c.negative, offset)
 }
 
-func (c *CPU) bpl(offset int8) {
-	if !c.negative {
-		c.pc = uint16(int(c.pc) + int(offset))
-	} else {
-		c.pc += 2
-	}
+func (c *CPU) bne(relative AddressingMode) {
+	offset := int8(c.readMem(relative()))
+	c.branchif(!c.zero, offset)
 }
 
-func (c *CPU) clc() {
+func (c *CPU) bpl(relative AddressingMode) {
+	offset := int8(c.readMem(relative()))
+	c.branchif(!c.negative, offset)
+}
+
+func (c *CPU) clc(_ AddressingMode) {
 	c.carry = false
 }
 
-func (c *CPU) cld() {
+func (c *CPU) cld(_ AddressingMode) {
 	c.decimal = false
 }
 
-func (c *CPU) dey() {
+func (c *CPU) cmp(address AddressingMode) {
+	value := c.readMem(address())
+	result := c.a - value
+	c.carry = (c.a >= value)
+	c.setZero(result)
+	c.setNegative(result)
+}
+
+func (c *CPU) cpx(address AddressingMode) {
+	value := c.readMem(address())
+	result := c.x - value
+	c.carry = (c.x >= value)
+	c.setZero(result)
+	c.setNegative(result)
+}
+
+func (c *CPU) dec(address AddressingMode) {
+	val := c.readMem(address())
+	val--
+	c.setZero(val)
+	c.setNegative(val)
+	c.writeMem(address(), val)
+}
+
+func (c *CPU) dex(_ AddressingMode) {
+	c.x--
+	c.setZero(c.x)
+	c.setNegative(c.x)
+}
+
+func (c *CPU) dey(_ AddressingMode) {
 	c.y--
 	c.setZero(c.y)
 	c.setNegative(c.y)
 }
 
-func (c *CPU) inc(address uint16) {
-	value := c.readMem(address)
+func (c *CPU) inc(address AddressingMode) {
+	value := c.readMem(address())
 	value++
 	c.setZero(value)
 	c.setNegative(value)
-	c.writeMem(address, value)
+	c.writeMem(address(), value)
 }
 
-func (c *CPU) jmp(address uint16) {
-	c.pc = address
+func (c *CPU) inx(_ AddressingMode) {
+	c.x++
+	c.setZero(c.x)
+	c.setNegative(c.x)
 }
 
-func (c *CPU) jsr(address uint16) {
-	lowByte := uint8((c.pc - 1) & 0xff)
-	highByte := uint8((c.pc - 1) >> 8)
+func (c *CPU) jmp(address AddressingMode) {
+	c.pc = address()
+}
+
+func (c *CPU) jsr(address AddressingMode) {
+	lowByte := uint8((c.pc + 2) & 0xff)
+	highByte := uint8((c.pc + 2) >> 8)
 	c.stackPush(lowByte)
 	c.stackPush(highByte)
-	c.pc = address
+	c.pc = address()
 }
 
-func (c *CPU) lda(val uint8) {
-	c.a = val
-	c.setNegative(val)
-	c.setZero(val)
+func (c *CPU) lda(address AddressingMode) {
+	c.a = c.readMem(address())
+	c.setNegative(c.a)
+	c.setZero(c.a)
 }
 
-func (c *CPU) ldx(val uint8) {
-	c.x = val
-	c.setNegative(val)
-	c.setZero(val)
+func (c *CPU) ldx(address AddressingMode) {
+	c.x = c.readMem(address())
+	c.setNegative(c.x)
+	c.setZero(c.x)
 }
 
-func (c *CPU) ldy(val uint8) {
-	c.y = val
-	c.setNegative(val)
-	c.setZero(val)
+func (c *CPU) ldy(address AddressingMode) {
+	c.y = c.readMem(address())
+	c.setNegative(c.y)
+	c.setZero(c.y)
 }
 
-func (c *CPU) pha() {
+func (c *CPU) pha(_ AddressingMode) {
 	c.stackPush(c.a)
 }
 
-func (c *CPU) pla() {
-	value := c.stackPop()
-	c.a = value
-	c.setNegative(value)
-	c.setZero(value)
+func (c *CPU) pla(_ AddressingMode) {
+	c.a = c.stackPop()
+	c.setNegative(c.a)
+	c.setZero(c.a)
 }
 
-func (c *CPU) sbc(val uint8) {
+func (c *CPU) rts(_ AddressingMode) {
+	highByte := uint16(c.stackPop())
+	lowByte := uint16(c.stackPop())
+	c.pc = Address(highByte<<8 | lowByte)
+	c.pc++
+}
+
+func (c *CPU) sbc(address AddressingMode) {
+	val := c.readMem(address())
 	var t int8
 	if c.decimal {
 		t = binToBcd(c.a) - binToBcd(val)
@@ -110,34 +201,60 @@ func (c *CPU) sbc(val uint8) {
 	c.a = uint8(t)
 }
 
-func (c *CPU) sec() {
+func (c *CPU) sec(_ AddressingMode) {
 	c.carry = true
 }
 
-func (c *CPU) sei() {
+func (c *CPU) sed(_ AddressingMode) {
+	c.decimal = true
+}
+
+func (c *CPU) sei(_ AddressingMode) {
 	c.interruptDisable = true
 }
 
-func (c *CPU) sta(address uint16) {
-	c.writeMem(address, c.a)
+func (c *CPU) sta(address AddressingMode) {
+	c.writeMem(address(), c.a)
 }
 
-func (c *CPU) stx(address uint16) {
-	c.writeMem(address, c.x)
+func (c *CPU) stx(address AddressingMode) {
+	c.writeMem(address(), c.x)
 }
 
-func (c *CPU) sty(address uint16) {
-	c.writeMem(address, c.y)
+func (c *CPU) sty(address AddressingMode) {
+	c.writeMem(address(), c.y)
 }
 
-func (c *CPU) tax() {
+func (c *CPU) tax(_ AddressingMode) {
 	c.x = c.a
+	c.setZero(c.x)
+	c.setNegative(c.x)
 }
 
-func (c *CPU) txa() {
+func (c *CPU) tay(_ AddressingMode) {
+	c.y = c.a
+	c.setZero(c.y)
+	c.setNegative(c.y)
+}
+
+func (c *CPU) tsx(_ AddressingMode) {
+	c.x = c.sp
+	c.setZero(c.x)
+	c.setNegative(c.x)
+}
+
+func (c *CPU) txa(_ AddressingMode) {
 	c.a = c.x
+	c.setZero(c.a)
+	c.setNegative(c.a)
 }
 
-func (c *CPU) txs() {
+func (c *CPU) txs(_ AddressingMode) {
 	c.sp = c.x
+}
+
+func (c *CPU) tya(_ AddressingMode) {
+	c.a = c.y
+	c.setZero(c.a)
+	c.setNegative(c.a)
 }
