@@ -35,6 +35,13 @@ func (c *CPU) adc(address AddressingMode) {
 	c.setNegative(c.a)
 }
 
+func (c *CPU) and(address AddressingMode) {
+	val := c.readMem(address())
+	c.a = c.a & val
+	c.setZero(c.a)
+	c.setNegative(c.a)
+}
+
 func (c *CPU) bcc(relative AddressingMode) {
 	offset := int8(c.readMem(relative()))
 	c.branchif(!c.carry, offset)
@@ -97,6 +104,14 @@ func (c *CPU) cpx(address AddressingMode) {
 	c.setNegative(result)
 }
 
+func (c *CPU) cpy(address AddressingMode) {
+	value := c.readMem(address())
+	result := c.y - value
+	c.carry = (c.y >= value)
+	c.setZero(result)
+	c.setNegative(result)
+}
+
 func (c *CPU) dec(address AddressingMode) {
 	val := c.readMem(address())
 	val--
@@ -131,6 +146,12 @@ func (c *CPU) inx(_ AddressingMode) {
 	c.setNegative(c.x)
 }
 
+func (c *CPU) iny(_ AddressingMode) {
+	c.y++
+	c.setZero(c.y)
+	c.setNegative(c.y)
+}
+
 func (c *CPU) jmp(address AddressingMode) {
 	c.pc = address()
 }
@@ -161,6 +182,35 @@ func (c *CPU) ldy(address AddressingMode) {
 	c.setZero(c.y)
 }
 
+func (c *CPU) lsr(address AddressingMode) {
+	var value uint8
+	if address == nil {
+		value = c.a
+	} else {
+		value = c.readMem(address())
+	}
+
+	newVal := value >> 1
+	c.carry = (value&1 != 0)
+	c.setZero(newVal)
+	c.setNegative(newVal)
+
+	if address == nil {
+		c.a = value
+	} else {
+		c.writeMem(address(), value)
+	}
+}
+
+func (c *CPU) nop(_ AddressingMode) {}
+
+func (c *CPU) ora(address AddressingMode) {
+	val := c.readMem(address())
+	c.a = c.a | val
+	c.setZero(c.a)
+	c.setNegative(c.a)
+}
+
 func (c *CPU) pha(_ AddressingMode) {
 	c.stackPush(c.a)
 }
@@ -169,6 +219,30 @@ func (c *CPU) pla(_ AddressingMode) {
 	c.a = c.stackPop()
 	c.setNegative(c.a)
 	c.setZero(c.a)
+}
+
+func (c *CPU) rol(address AddressingMode) {
+	var value uint8
+	if address == nil {
+		value = c.a
+	} else {
+		value = c.readMem(address())
+	}
+
+	newCarry := value >> 7
+	newVal := value << 1
+	if c.carry {
+		newVal |= 1
+	}
+	c.carry = (newCarry == 1)
+	c.setNegative(newVal)
+	c.setZero(newVal)
+
+	if address == nil {
+		c.a = newVal
+	} else {
+		c.writeMem(address(), newVal)
+	}
 }
 
 func (c *CPU) rts(_ AddressingMode) {
